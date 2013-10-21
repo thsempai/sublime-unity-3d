@@ -29,52 +29,56 @@ class AddheaderCommand(sublime_plugin.TextCommand):
 
     def __check_hearder(self, edit):
 
-        ok = False
-        lines = self.view.lines(sublime.Region(0, self.view.size()))
-        for line in lines:
+        begin = None
+        end = None
+
+        for line in self.view.lines(sublime.Region(0, self.view.size())):
 
             line_str = self.view.substr(line)
-
-            if ok:
-                regex = re.compile(K_TAG_REGEX)
-                regex_end = re.compile(K_COMMENT_DELIMITER_REGEX)
-
-                if regex.match(line_str):
-                    line_str = line_str[len(regex_str)-1:]
-                    line_str = line_str.split(':')
-                    tag = line_str[0].strip()
-                    value = line_str[1].strip()
-
-                    if tag == K_TAG_FILE_NAME:
-
-                        file_name = self.__get_file_name()
-                        tag = '%s:' % tag
-                        tag = tag + ' ' * (K_NCHAR - len(tag))
-                        text = '%s %s %s' % (K_TAG_PREFIX, tag, file_name)
-
-                        self.view.replace(edit, line, text)
-
-                    elif tag == K_TAG_MODIFIED:
-
-                        modfied = datetime.date.today()
-                        tag = '%s:' % tag
-                        tag = tag + ' ' * (K_NCHAR - len(tag))
-                        text = '%s %s %s' % (K_TAG_PREFIX, tag, modfied)
-
-                        self.view.replace(edit, line, text)
-
-                elif regex_end.match(line_str):
-
+            regex = re.compile(K_COMMENT_DELIMITER_REGEX)
+            if regex.match(line_str):
+                print line.begin()
+                if begin is None:
+                    begin = line.begin()
+                else:
+                    end = line.end()
                     break
 
-            else:
-                regex_str = '// \**'
-                regex = re.compile(K_COMMENT_DELIMITER_REGEX)
+        print begin, end
+        if end is None:
+            return False
 
-                if regex.match(line_str):
-                    ok = True
+        header = self.view.substr(sublime.Region(begin, end)).split('\n')
+        print begin, end
+        header_text = ''
 
-        return ok
+        for line in header:
+
+            regex = re.compile(K_TAG_REGEX)
+
+            if regex.match(line):
+                line = line[len(K_TAG_PREFIX):]
+                line = line.split(':')
+                tag = line[0].strip()
+                value = line[1].strip()
+
+                if tag == K_TAG_FILE_NAME:
+                    value = self.__get_file_name()
+
+                elif tag == K_TAG_MODIFIED:
+                    value = datetime.date.today()
+
+                tag = '%s:' % tag
+                tag = tag + ' ' * (K_NCHAR - len(tag))
+                text = '%s %s %s' % (K_TAG_PREFIX, tag, value)
+                line = text
+
+            header_text += '%s\n' % line
+
+        header_text = header_text[:-1]
+        self.view.replace(edit, sublime.Region(begin, end), header_text)
+
+        return True
 
     def __make_header(self, user_name, file_name):
 
